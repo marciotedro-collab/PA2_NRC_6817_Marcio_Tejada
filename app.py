@@ -14,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Estilo personalizado para las alertas de tabla
+# Estilo personalizado para las alertas de la tabla interactiva
 def color_riesgo(val):
     if val == "CRÍTICO":
         color = "#ffcccc"  # Rojo claro
@@ -46,45 +46,44 @@ with st.sidebar:
     st.markdown("---")
 
 # =============================================================================
-# LÓGICA DE CARGA Y PROCESAMIENTO DE DATOS
+# LÓGICA DE CARGA Y DETECTOR INTELIGENTE DE COLUMNAS (Previene KeyErrors)
 # =============================================================================
 @st.cache_data
 def load_data(file):
     df = pd.read_csv(file)
     
-    # 🕵️‍♂️ DETECTOR AUTOMÁTICO DE COLUMNAS (Robusto contra tildes y mayúsculas)
+    # Detector automático de columnas (Inmune a tildes, mayúsculas y variaciones de nombres)
     columnas_reales = df.columns.tolist()
     mapeo_inteligente = {}
     
     for col in columnas_reales:
         col_clean = col.lower().strip()
-        # Eliminar tildes básicas para la comparación
+        # Limpieza básica de caracteres especiales
         col_clean = col_clean.replace('á', 'a').replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u')
         
         if 'id' in col_clean and 'prod' in col_clean:
             mapeo_inteligente[col] = 'ID_Producto'
         elif 'prod' in col_clean and ('nombre' in col_clean or 'item' in col_clean or col_clean == 'producto'):
             mapeo_inteligente[col] = 'Nombre_Producto'
-        elif 'cat' in col_clean: # Detecta Categoria, Categoría, CATEGORIA, etc.
+        elif 'cat' in col_clean: 
             mapeo_inteligente[col] = 'Categoria'
         elif 'zon' in col_clean or 'regio' in col_clean:
             mapeo_inteligente[col] = 'Zona'
-        elif 'stock' in col_clean and 'act' in col_clean or col_clean == 'stock':
+        elif ('stock' in col_clean and 'act' in col_clean) or col_clean == 'stock':
             mapeo_inteligente[col] = 'Stock_Actual'
         elif 'seg' in col_clean or 'min' in col_clean:
             mapeo_inteligente[col] = 'Stock_Seguridad'
-        elif 'dem' in col_clean or 'vta' in col_clean or 'venta' in col_clean:
+        elif 'dem' in col_clean or 'vta' in col_clean or 'venta' in col_clean or 'diaria' in col_clean:
             mapeo_inteligente[col] = 'Demanda_Promedio_Diaria'
-        elif 'tiem' in col_clean or 'entrega' in col_clean or 'lead' in col_clean:
+        elif 'tiem' in col_clean or 'entrega' in col_clean or 'lead' in col_clean or 'dias' in col_clean:
             mapeo_inteligente[col] = 'Tiempo_Entrega_Dias'
         elif 'rot' in col_clean:
             mapeo_inteligente[col] = 'Rotacion'
 
-    # Renombrar las columnas encontradas
+    # Renombrar columnas encontradas
     df = df.rename(columns=mapeo_inteligente)
     
-    # 🛠️ ASEGURAR COLUMNAS MÍNIMAS REQUERIDAS POR LOS FILTROS Y GRÁFICOS
-    # Si alguna columna crítica no se detectó, la creamos con valores por defecto para evitar que la app muera
+    # Estructura obligatoria de respaldo si el dataset original carece de alguna columna
     columnas_obligatorias = {
         'ID_Producto': [f"PROD-{i}" for i in range(len(df))],
         'Nombre_Producto': [f"Producto {i}" for i in range(len(df))],
@@ -101,18 +100,37 @@ def load_data(file):
         if col_req not in df.columns:
             df[col_req] = valor_defecto
         else:
-            # Si es numérica, limpiar nulos y forzar tipo correcto
+            # Forzar conversión numérica correcta y limpiar nulos
             if col_req in ['Stock_Actual', 'Stock_Seguridad', 'Demanda_Promedio_Diaria', 'Tiempo_Entrega_Dias', 'Rotacion']:
                 df[col_req] = pd.to_numeric(df[col_req], errors='coerce').fillna(0)
                 
     return df
 
+# Dataset sintético por defecto para evitar errores al iniciar la app sin un CSV listo
+def generate_mock_data():
+    np.random.seed(42)
+    categorias = ["Electrónica", "Alimentos", "Textil", "Ferretería"]
+    zonas = ["Norte", "Sur", "Centro", "Este"]
+    data = {
+        "ID_Producto": [f"PROD-{i:03d}" for i in range(1, 51)],
+        "Nombre_Producto": [f"Artículo {i}" for i in range(1, 51)],
+        "Categoria": np.random.choice(categorias, 50),
+        "Zona": np.random.choice(zonas, 50),
+        "Stock_Actual": np.random.randint(0, 150, 50),
+        "Stock_Seguridad": np.random.randint(10, 40, 50),
+        "Demanda_Promedio_Diaria": np.random.randint(2, 15, 50),
+        "Tiempo_Entrega_Dias": np.random.randint(3, 10, 50),
+        "Rotacion": np.random.uniform(1.2, 8.5, 50).round(2)
+    }
+    return pd.DataFrame(data)
+
+# Control de carga del archivo
 if uploaded_file is not None:
     df_raw = load_data(uploaded_file)
-    st.sidebar.success("¡Archivo cargado con éxito!")
+    st.sidebar.success("¡Archivo cargado e indexado con éxito!")
 else:
     df_raw = generate_mock_data()
-    st.sidebar.info("Mostrando datos de demostración basados en logistics_dataset.csv.")
+    st.sidebar.info("Mostrando datos de demostración basados en la estructura del Colab.")
 
 # =============================================================================
 # FILTROS DINÁMICOS EN SIDEBAR
@@ -124,7 +142,7 @@ with st.sidebar:
     list_zonas = ["Todos"] + sorted(df_raw["Zona"].dropna().unique().tolist())
     selected_zona = st.selectbox("Selecciona Zona", list_zonas)
 
-# Aplicación de los filtros al DataFrame de trabajo
+# Aplicación estricta de filtros sobre el DataFrame
 df_filtered = df_raw.copy()
 if selected_cat != "Todos":
     df_filtered = df_filtered[df_filtered["Categoria"] == selected_cat]
@@ -188,18 +206,18 @@ with col_graf2:
 
 st.markdown("---")
 
-# --- SECCIÓN 3: INTEGRACIÓN DE MODELOS SCIEKIT-LEARN / JOBLIB ---
+# --- SECCIÓN 3: INTEGRACIÓN DE MODELOS SCIKIT-LEARN / JOBLIB ---
 st.subheader("🔮 Alertas Tempranas de Machine Learning")
 st.markdown("Resultados de inferencia del modelo predictivo para identificar artículos en riesgo crítico.")
 
 def ejecutar_inferencia_ml(data):
     """
-    Carga el modelo guardado desde Colab usando joblib. 
-    Si el archivo no está en la raíz del repositorio, aplica un fallback determinista.
+    Carga el archivo pkl entrenado de scikit-learn. 
+    Aplica corrección de error si no detecta el binario en el repositorio de manera local.
     """
     nombre_modelo = 'modelo_quiebre.pkl'
     
-    # Generamos la variable de días para quiebre (Feature común)
+    # Calcular días para quiebre aproximados (feature analítica de soporte)
     data['Dias_Para_Quiebre'] = np.where(
         data['Demanda_Promedio_Diaria'] > 0,
         (data['Stock_Actual'] / data['Demanda_Promedio_Diaria']).round(1),
@@ -208,19 +226,18 @@ def ejecutar_inferencia_ml(data):
     
     if os.path.exists(nombre_modelo):
         try:
-            # 🚀 CARGA REAL CON JOBLIB Y SCIKIT-LEARN
+            # Carga real usando Joblib
             model = joblib.load(nombre_modelo)
             
-            # Ajusta las columnas 'X' según los nombres exactos de tu entrenamiento en Colab
+            # Variables predictoras mapeadas para la inferencia de scikit-learn
             X = data[['Stock_Actual', 'Stock_Seguridad', 'Demanda_Promedio_Diaria', 'Tiempo_Entrega_Dias']]
             
-            # Ejecución de la predicción
+            # Ejecución del modelo predictivo
             predicciones = model.predict(X)
             data['Riesgo_Predicho'] = predicciones
             
         except Exception as e:
-            st.warning(f"Error al ejecutar el archivo .pkl: {e}. Aplicando respaldo matemático.")
-            # Fallback en caso de incompatibilidad de versiones de scikit-learn
+            st.warning(f"Error técnico al deserializar el .pkl: {e}. Desplegando árbol de decisión lógico.")
             condiciones = [
                 (data['Stock_Actual'] == 0) | (data['Dias_Para_Quiebre'] <= 2),
                 (data['Stock_Actual'] <= data['Stock_Seguridad']),
@@ -228,7 +245,7 @@ def ejecutar_inferencia_ml(data):
             ]
             data['Riesgo_Predicho'] = np.select(condiciones, ["CRÍTICO", "ALTO", "NORMAL"], default="NORMAL")
     else:
-        # Fallback si el archivo .pkl aún no se sube al repositorio
+        # Fallback analítico si el modelo pkl no se encuentra en la raíz del repositorio de github
         condiciones = [
             (data['Stock_Actual'] == 0) | (data['Dias_Para_Quiebre'] <= 2),
             (data['Stock_Actual'] <= data['Stock_Seguridad']),
@@ -238,7 +255,7 @@ def ejecutar_inferencia_ml(data):
         
     return data
 
-# Procesar DataFrame con el modelo
+# Procesar inferencias
 df_predicciones = ejecutar_inferencia_ml(df_filtered)
 
 columnas_visibles = [
@@ -246,6 +263,7 @@ columnas_visibles = [
     "Stock_Actual", "Stock_Seguridad", "Dias_Para_Quiebre", "Riesgo_Predicho"
 ]
 
+# Renderizado corregido usando .map() compatible con Pandas 2.x e inferiores
 st.dataframe(
     df_predicciones[columnas_visibles].style.map(color_riesgo, subset=['Riesgo_Predicho']),
     use_container_width=True,
@@ -256,7 +274,7 @@ st.markdown("---")
 
 # --- SECCIÓN 4: SIMULADOR INTELIGENTE DE PEDIDOS ---
 st.subheader("🤖 Simulador de Abastecimiento Óptimo")
-st.markdown("Simulación del Punto de Reposición (ROP) e inventario sugerido para compras.")
+st.markdown("Simulación del Punto de Reposición (ROP) e inventario sugerido para compras de abastecimiento.")
 
 producto_seleccionado = st.selectbox(
     "Selecciona el producto a simular:",
@@ -277,11 +295,11 @@ if producto_seleccionado:
     with col_sim2:
         st.markdown("#### 🎯 Resultado del Cálculo de Reabastecimiento")
         
-        # ROP = (Demanda Diaria * Lead Time) + Stock de Seguridad
+        # Cálculo matemático del Lead Time Demand y ROP
         punto_de_pedido = (demanda_input * lead_time_input) + stock_seg_input
         
         if stock_actual_input <= punto_de_pedido:
-            # Cobertura estándar de 30 días de operación
+            # Cobertura de reaprovisionamiento para un mes estándar de operación (30 días)
             cantidad_sugerida = (demanda_input * 30) + stock_seg_input - stock_actual_input
             necesita_pedido = "⚠️ SÍ - Generar Orden Urgente"
             color_alert = st.error
@@ -294,7 +312,7 @@ if producto_seleccionado:
         color_alert(f"**Estado de Alerta:** {necesita_pedido}")
         
         st.info(
-            f"El Punto de Pedido crítico es de **{punto_de_pedido}** unidades. "
-            f"Tu stock de **{stock_actual_input}** unidades requiere una acción inmediata."
+            f"El Punto de Pedido crítico calculado es de **{punto_de_pedido}** unidades. "
+            f"Tus existencias físicas actuales registran **{stock_actual_input}** unidades."
         )
         st.subheader(f"Pedido Óptimo a Solicitar: {cantidad_sugerida} uds.")
