@@ -2,3 +2,10 @@ Pásame el código completo en Python para una app de Streamlit en español que 
 Además quiero que en la app se pueda esta información y entrar al link: Marcio Manuel Tejada Rodríguez 73047305 https://colab.research.google.com/drive/1y6rVJfICT2AmW46ckP30ciqzgimKyuNl#scrollTo=yqHRZTCKDJq0 
 
 Los modelos estan en colab en link de arriba, también dejo el link del repositorio en github https://github.com/marciotedro-collab/PA2_NRC_6817_Marcio_Tejada/blob/main/app.py
+Lo requerimeintos son:
+streamlit
+pandas
+scikit-learn
+joblib
+numpy
+plotly
