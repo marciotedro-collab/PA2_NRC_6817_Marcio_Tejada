@@ -564,6 +564,53 @@ def main():
         </div>
         """, unsafe_allow_html=True)
 
+        # ── Tarjeta de autor ──────────────────────────────────────
+        st.markdown("---")
+        st.markdown("""
+        <div style='
+            background: linear-gradient(135deg, rgba(56,189,248,0.07) 0%, rgba(129,140,248,0.07) 100%);
+            border: 1px solid rgba(56,189,248,0.2);
+            border-radius: 12px;
+            padding: 16px;
+        '>
+            <div style='display:flex;align-items:center;gap:10px;margin-bottom:12px;'>
+                <div style='
+                    width:38px;height:38px;border-radius:50%;
+                    background:linear-gradient(135deg,#38bdf8,#818cf8);
+                    display:flex;align-items:center;justify-content:center;
+                    font-weight:800;font-size:1rem;color:#0f172a;flex-shrink:0;
+                '>M</div>
+                <div>
+                    <div style='color:#e2e8f0;font-weight:700;font-size:0.82rem;line-height:1.2;'>
+                        Marcio Manuel<br>Tejada Rodríguez
+                    </div>
+                    <div style='color:#64748b;font-size:0.68rem;margin-top:1px;
+                                font-family:"JetBrains Mono",monospace;letter-spacing:0.5px;'>
+                        ID · 73047305
+                    </div>
+                </div>
+            </div>
+            <a href='https://colab.research.google.com/drive/1y6rVJfICT2AmW46ckP30ciqzgimKyuNl#scrollTo=yqHRZTCKDJq0'
+               target='_blank'
+               style='
+                   display:block;
+                   background:rgba(56,189,248,0.12);
+                   border:1px solid rgba(56,189,248,0.3);
+                   border-radius:8px;
+                   padding:9px 12px;
+                   text-decoration:none;
+                   color:#38bdf8;
+                   font-size:0.75rem;
+                   font-weight:600;
+                   text-align:center;
+                   transition:background .2s;
+                   letter-spacing:0.3px;
+               '>
+                🔗 Ver Notebook en Colab
+            </a>
+        </div>
+        """, unsafe_allow_html=True)
+
     # ── FILTROS APLICADOS ─────────────────────────────────────────
     df = df_full.copy()
     if sel_cat != "Todas":
@@ -1164,4 +1211,4 @@ def main():
 
 # ─────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    main()# Main application file
+    main()
