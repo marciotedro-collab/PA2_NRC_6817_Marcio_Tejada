@@ -51,25 +51,61 @@ with st.sidebar:
 @st.cache_data
 def load_data(file):
     df = pd.read_csv(file)
-    return df
+    
+    # 🕵️‍♂️ DETECTOR AUTOMÁTICO DE COLUMNAS (Robusto contra tildes y mayúsculas)
+    columnas_reales = df.columns.tolist()
+    mapeo_inteligente = {}
+    
+    for col in columnas_reales:
+        col_clean = col.lower().strip()
+        # Eliminar tildes básicas para la comparación
+        col_clean = col_clean.replace('á', 'a').replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u')
+        
+        if 'id' in col_clean and 'prod' in col_clean:
+            mapeo_inteligente[col] = 'ID_Producto'
+        elif 'prod' in col_clean and ('nombre' in col_clean or 'item' in col_clean or col_clean == 'producto'):
+            mapeo_inteligente[col] = 'Nombre_Producto'
+        elif 'cat' in col_clean: # Detecta Categoria, Categoría, CATEGORIA, etc.
+            mapeo_inteligente[col] = 'Categoria'
+        elif 'zon' in col_clean or 'regio' in col_clean:
+            mapeo_inteligente[col] = 'Zona'
+        elif 'stock' in col_clean and 'act' in col_clean or col_clean == 'stock':
+            mapeo_inteligente[col] = 'Stock_Actual'
+        elif 'seg' in col_clean or 'min' in col_clean:
+            mapeo_inteligente[col] = 'Stock_Seguridad'
+        elif 'dem' in col_clean or 'vta' in col_clean or 'venta' in col_clean:
+            mapeo_inteligente[col] = 'Demanda_Promedio_Diaria'
+        elif 'tiem' in col_clean or 'entrega' in col_clean or 'lead' in col_clean:
+            mapeo_inteligente[col] = 'Tiempo_Entrega_Dias'
+        elif 'rot' in col_clean:
+            mapeo_inteligente[col] = 'Rotacion'
 
-# Dataset simulado de base (estructura idéntica al archivo real)
-def generate_mock_data():
-    np.random.seed(42)
-    categorias = ["Electrónica", "Alimentos", "Textil", "Ferretería"]
-    zonas = ["Norte", "Sur", "Centro", "Este"]
-    data = {
-        "ID_Producto": [f"PROD-{i:03d}" for i in range(1, 51)],
-        "Nombre_Producto": [f"Artículo {i}" for i in range(1, 51)],
-        "Categoria": np.random.choice(categorias, 50),
-        "Zona": np.random.choice(zonas, 50),
-        "Stock_Actual": np.random.randint(0, 150, 50),
-        "Stock_Seguridad": np.random.randint(10, 40, 50),
-        "Demanda_Promedio_Diaria": np.random.randint(2, 15, 50),
-        "Tiempo_Entrega_Dias": np.random.randint(3, 10, 50),
-        "Rotacion": np.random.uniform(1.2, 8.5, 50).round(2)
+    # Renombrar las columnas encontradas
+    df = df.rename(columns=mapeo_inteligente)
+    
+    # 🛠️ ASEGURAR COLUMNAS MÍNIMAS REQUERIDAS POR LOS FILTROS Y GRÁFICOS
+    # Si alguna columna crítica no se detectó, la creamos con valores por defecto para evitar que la app muera
+    columnas_obligatorias = {
+        'ID_Producto': [f"PROD-{i}" for i in range(len(df))],
+        'Nombre_Producto': [f"Producto {i}" for i in range(len(df))],
+        'Categoria': ['General'] * len(df),
+        'Zona': ['Principal'] * len(df),
+        'Stock_Actual': [0] * len(df),
+        'Stock_Seguridad': [10] * len(df),
+        'Demanda_Promedio_Diaria': [5] * len(df),
+        'Tiempo_Entrega_Dias': [7] * len(df),
+        'Rotacion': [2.0] * len(df)
     }
-    return pd.DataFrame(data)
+    
+    for col_req, valor_defecto in columnas_obligatorias.items():
+        if col_req not in df.columns:
+            df[col_req] = valor_defecto
+        else:
+            # Si es numérica, limpiar nulos y forzar tipo correcto
+            if col_req in ['Stock_Actual', 'Stock_Seguridad', 'Demanda_Promedio_Diaria', 'Tiempo_Entrega_Dias', 'Rotacion']:
+                df[col_req] = pd.to_numeric(df[col_req], errors='coerce').fillna(0)
+                
+    return df
 
 if uploaded_file is not None:
     df_raw = load_data(uploaded_file)
