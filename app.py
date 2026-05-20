@@ -35,7 +35,7 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # 2. Información del Autor y Enlaces solicitados
+    # 2. Información del Autor y Enlaces obligatorios
     st.markdown("### 🧑‍💻 Información del Proyecto")
     st.markdown("**Estudiante:** Marcio Manuel Tejada Rodríguez")
     st.markdown("**Código/DNI:** 73047305")
@@ -46,7 +46,7 @@ with st.sidebar:
     st.markdown("---")
 
 # =============================================================================
-# LÓGICA DE CARGA Y DETECTOR INTELIGENTE DE COLUMNAS (Previene KeyErrors)
+# LÓGICA DE CARGA Y DETECTOR ULTRA-ROBUSTO DE COLUMNAS
 # =============================================================================
 @st.cache_data
 def load_data(file):
@@ -58,7 +58,7 @@ def load_data(file):
     
     for col in columnas_reales:
         col_clean = col.lower().strip()
-        # Limpieza básica de caracteres especiales
+        # Limpieza básica de caracteres especiales y tildes
         col_clean = col_clean.replace('á', 'a').replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u')
         
         if 'id' in col_clean and 'prod' in col_clean:
@@ -83,6 +83,9 @@ def load_data(file):
     # Renombrar columnas encontradas
     df = df.rename(columns=mapeo_inteligente)
     
+    # 🛠️ CORRECCIÓN 1: Eliminar columnas con nombres duplicados antes de procesar
+    df = df.loc[:, ~df.columns.duplicated()].copy()
+    
     # Estructura obligatoria de respaldo si el dataset original carece de alguna columna
     columnas_obligatorias = {
         'ID_Producto': [f"PROD-{i}" for i in range(len(df))],
@@ -100,9 +103,14 @@ def load_data(file):
         if col_req not in df.columns:
             df[col_req] = valor_defecto
         else:
-            # Forzar conversión numérica correcta y limpiar nulos
+            # 🛠️ CORRECCIÓN 2: Asegurar estructura unidimensional (Series) y limpiar comas decimales
+            serie_col = df[col_req]
+            if isinstance(serie_col, pd.DataFrame):
+                serie_col = serie_col.iloc[:, 0]
+            
             if col_req in ['Stock_Actual', 'Stock_Seguridad', 'Demanda_Promedio_Diaria', 'Tiempo_Entrega_Dias', 'Rotacion']:
-                df[col_req] = pd.to_numeric(df[col_req], errors='coerce').fillna(0)
+                # Conversión numérica limpia reemplazando comas por puntos en strings
+                df[col_req] = pd.to_numeric(serie_col.astype(str).str.replace(',', '.').str.strip(), errors='coerce').fillna(0)
                 
     return df
 
@@ -213,7 +221,7 @@ st.markdown("Resultados de inferencia del modelo predictivo para identificar art
 def ejecutar_inferencia_ml(data):
     """
     Carga el archivo pkl entrenado de scikit-learn. 
-    Aplica corrección de error si no detecta el binario en el repositorio de manera local.
+    Aplica fallback lógico si no detecta el binario en la raíz del repositorio.
     """
     nombre_modelo = 'modelo_quiebre.pkl'
     
@@ -263,7 +271,7 @@ columnas_visibles = [
     "Stock_Actual", "Stock_Seguridad", "Dias_Para_Quiebre", "Riesgo_Predicho"
 ]
 
-# Renderizado corregido usando .map() compatible con Pandas 2.x e inferiores
+# Renderizado corregido usando .map() compatible con Pandas 2.x+
 st.dataframe(
     df_predicciones[columnas_visibles].style.map(color_riesgo, subset=['Riesgo_Predicho']),
     use_container_width=True,
