@@ -211,7 +211,7 @@ columnas_visibles = [
 ]
 
 st.dataframe(
-    df_predicciones[columnas_visibles].style.applymap(color_riesgo, subset=['Riesgo_Predicho']),
+    df_predicciones[columnas_visibles].style.map(color_riesgo, subset=['Riesgo_Predicho']),
     use_container_width=True,
     hide_index=True
 )
